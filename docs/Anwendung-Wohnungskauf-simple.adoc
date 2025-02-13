@@ -1,0 +1,454 @@
+= Anwendung "Wohnungskauf" - Technische Gesamtspezifikation
+:doctype: book
+:toc:
+:sectnums:
+
+== Einleitung
+
+Diese Dokumentation beschreibt sämtliche Funktionen, Datenstrukturen, Abläufe und Gestaltungsvorgaben der Anwendung *"Wohnungskauf"* in einer für KI-Systeme optimierten Form. Die Inhalte basieren auf der Funktionsübersicht, der schrittweisen Unterstützung im Kaufprozess sowie den Design- und Technologie-Anforderungen. Dank eines klaren, einfachen Technologie-Stacks (siehe Abschnitt "Technologie-Empfehlung") kann die Anwendung ohne unnötigen Overhead umgesetzt werden.
+
+== Gesamtüberblick
+
+Die Anwendung *"Wohnungskauf"* unterstützt den gesamten Immobilienkaufprozess von der ersten Orientierung bis zum Notartermin. Ein zentrales Merkmal ist die **step-by-step-Visualisierung** aller Aufgaben und Informationen. Die Anwendung verwaltet Dokumente, Kontakte, Finanzierungsdetails und Objektinformationen. Sie bietet ein modernes, edles Dark-Theme-Design, responsiv umgesetzt mit flüssigen, GPU-beschleunigten Animationen.
+
+== Hauptfunktionen
+
+=== 1. Step-by-step-Visualisierung
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Fortschrittsbalken
+| Zeigt den aktuellen Prozessschritt (z.B. „Finanzierung klären“, „Objektsuche“, „Notartermin“) und weitere anstehende Schritte.
+
+| Detaillierte Prozessübersicht (Timeline)
+| Darstellung der Meilensteine (Finanzierungsgespräch, Besichtigung, Vertragsunterzeichnung) in einer animierten Timeline (GPU-unterstützt für weiche Übergänge).
+
+| Aufgabenverwaltung
+| Zu jedem Schritt gibt es Aufgaben mit Status („offen“, „in Bearbeitung“, „abgeschlossen“).
+|===
+
+==== Technische Anforderungen Step-by-step-Visualisierung
+- Entität `ProzessSchritt` (siehe Abschnitt "Datenmodell") für jeden Prozessschritt.
+- Jede Aufgabe (`Aufgabe`) ist einem konkreten Schritt zugeordnet.
+- Die Fortschrittsanzeige (z.B. als Balken) berechnet sich aus dem Verhältnis erledigter zu offener Aufgaben.
+- GPU-Effekte werden nur zur Animationsoptimierung genutzt (beispielsweise weiches Ein-/Ausblenden von Schritten).
+
+=== 2. Finanzierungs- und Budgetplanung
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Finanzkalkulator
+| Berechnet die monatliche Rate basierend auf Eigenkapital, Darlehenshöhe, Zinssatz, Laufzeit (Annuitätenrechner).
+
+| Nebenkostenübersicht
+| Listet Kaufnebenkosten (Notar, Grunderwerbsteuer, Maklercourtage) mit automatischer Hochrechnung.
+
+| Budgetverwaltung
+| Fasst geplante Ausgaben, Rücklagen und finanzielle Szenarien zusammen; Vergleich unterschiedlicher Finanzierungsmodelle möglich.
+|===
+
+==== Technische Anforderungen Finanzierung
+- Zentrale Berechnungsmethode für Annuitätenrate in Pseudocode:
+
+----
+[source,pseudo]
+----
+function berechneMonatlicheRate(darlehensHoehe, zinssatzProJahr, laufzeitInJahren):
+    zinssatzProMonat = (zinssatzProJahr / 12) / 100
+    anzahlMonate = laufzeitInJahren * 12
+    return (darlehensHoehe * zinssatzProMonat) / (1 - (1 + zinssatzProMonat)^(-anzahlMonate))
+----
+
+- Entität `Finanzierung` (siehe Abschnitt "Datenmodell") mit Feldern:
+  * `darlehensHoehe` (Decimal)
+  * `zinssatzProJahr` (Decimal)
+  * `laufzeitInJahren` (Integer)
+  * `monatlicheRate` (Decimal, Ergebnis der obigen Formel)
+- Nebenkosten als Liste eigener Einträge (z.B. “Makler”, “Notar”) mit Betrag.
+
+=== 3. Dokumenten- und Informationsmanagement
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Zentraler Speicherort
+| Ermöglicht Upload und Ablage von relevanten Unterlagen (Exposés, Finanzierungsunterlagen, Gehaltsnachweise, Grundbuchauszüge).
+
+| Versionierung
+| Verfolgt Dokumentenänderungen (z.B. mehrere Entwürfe eines Vertrags).
+
+| Notizfunktion
+| Erlaubt Freitext-Kommentare pro Dokument (z.B. Hinweise zu Vertragsdetails).
+|===
+
+==== Technische Anforderungen Dokumentenmanagement
+- Entität `Dokument` (siehe "Datenmodell") mit Feldern für Titel, (Blob-)Dateiinhalte bzw. Dateipfad, Versionsnummern etc.
+- `DokumentNotiz` zum Speichern von freien Textnotizen (mit Zeitstempel) pro Dokument.
+- UI-seitig: Responsives Layout, Dark-Theme, keine Überschneidungen oder abgeschnittene Texte.
+
+=== 4. Kontaktmanagement
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Kontaktübersicht
+| Strukturierte Verwaltung aller beteiligten Personen/Institutionen (Bankberater, Makler, Notar, Gutachter).
+
+| Zuweisung von Aufgaben
+| Verknüpft Kontakte mit To-dos oder Dokumenten (z.B. „Bankberater muss Kreditangebot erstellen“).
+
+| Filter- und Suchoptionen
+| Schnelles Auffinden bestimmter Kontakte, Dokumente oder Termine.
+|===
+
+==== Technische Anforderungen Kontaktmanagement
+- Entität `Kontakt` (siehe "Datenmodell") mit Feldern wie `typ` (BANKBERATER, MAKLER, etc.), `name`, `telefon`, `email`.
+- Beziehungen zwischen `Kontakt` und `Aufgabe` bzw. `Dokument` über Relationstabellen (z.B. `kontakt_aufgabe`).
+- UI-Design: Dark-Theme, reaktionsschnelle Listen, kein Text darf über Rand hinausragen.
+
+=== 5. Objektvergleich und Selektionsunterstützung
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Kriterienliste
+| Erlaubt individuelle Bewertungsmerkmale (z.B. Lage, Zustand, Renovierungsbedarf, Preis-Leistung).
+
+| Vergleichsansicht
+| Gegenüberstellung mehrerer Objekte mit Scoring und Darstellung von Vor- und Nachteilen.
+
+| Exposé-Datenimport
+| Schnittstelle zu externen Plattformen (optional), um Objektinformationen (z.B. Wohnfläche) zu übernehmen.
+|===
+
+==== Technische Anforderungen Objektvergleich
+- Entität `Objekt` (siehe "Datenmodell") mit relevanten Feldern (Titel, Lage, Kaufpreis, Wohnfläche, Zimmer).
+- `ObjektBewertung` für das Speichern von Bewertungskriterien und Punktwerten.
+- GPU-unterstützte Effekte (z.B. animierte Balkendiagramme) sind rein visuell.
+
+=== 6. Terminkoordination und Kalenderansicht
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Erinnerungsfunktion
+| Benachrichtigt bei Deadlines (Finanzierungszusagen) oder Terminen (Besichtigungen).
+
+| Besichtigungstermin-Tracking
+| Erfasst während einer Besichtigung Notizen/Fotos, mobiloptimiert durch Responsive Design.
+|===
+
+==== Technische Anforderungen Terminmanagement
+- Entität `Termin` (siehe "Datenmodell") mit Feldern für Beschreibung, Datum/Uhrzeit, Ort, Ansprechpartner (Kontakt).
+- Erinnerungen können per E-Mail, Push oder In-App umgesetzt werden.
+- GPU-Animationskomponenten können Übergänge/Einblendungen optisch ansprechender gestalten.
+
+=== 7. Schrittweise Begleitung bis zum Kaufabschluss
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Checklisten für Prozessabschnitte
+| Automatisch generierte To-dos (z.B. „Vor Besichtigung“, „Nach Kaufzusage“, „Vor Notartermin“).
+
+| Fortschrittsberichte
+| Zeigt abgeschlossene vs. offene Aufgaben je Prozessschritt.
+
+| Vorbereitung auf Notartermin
+| Prüft, ob benötigte Unterlagen (z.B. Kaufvertragsentwurf) vollständig vorliegen.
+|===
+
+==== Technische Anforderungen Prozessbegleitung
+- Vordefinierte Prozessschritte (z.B. `SCHRITT_OBJEKTSUCHE`, `SCHRITT_FINANZIERUNG`, `SCHRITT_NOTARTERMIN`).
+- Aufgaben pro Schritt können in Templates hinterlegt oder dynamisch generiert werden.
+- Übergänge können GPU-gestützt animiert sein (z.B. sanfter Farbwechsel beim Abschluss eines Schritts).
+
+=== 8. Erweiterungen
+[cols="1,3", options="header"]
+|===
+| Funktion
+| Beschreibung
+
+| Automatisierte Berichte
+| Periodische Reportings (z.B. PDF) über den Projektfortschritt.
+
+| Statistische Auswertungen
+| Zeigt Marktentwicklungen oder Preistrends an (optionale Funktion).
+
+| Renovierungs- und Modernisierungsplaner
+| Plant künftige Renovierungen (Kosten, Zeitrahmen), kein Pflichtteil.
+|===
+
+==== Technische Anforderungen Erweiterungen
+- Keine zwingende GPU-Berechnung nötig; Animierte Darstellungen können optional sein.
+- Reporting kann Dokumente und Daten aus verschiedenen Modulen (Objekte, Kontakte, Finanzierung) zusammenfassen.
+- Responsives Dark-Theme sichert Lesbarkeit und konsistente Darstellung auf allen Endgeräten.
+
+== Datenmodell
+
+[cols="1,2,2,1", options="header"]
+|===
+| Entität
+| Attribut
+| Datentyp
+| Beschreibung
+
+| ProzessSchritt
+| id
+| UUID
+| Primärschlüssel
+| ProzessSchritt
+| name
+| String
+| z.B. "Finanzierung klären"
+| ProzessSchritt
+| sortIndex
+| Integer
+| Reihenfolge
+| ProzessSchritt
+| erledigteAufgaben
+| Integer
+| Anzahl abgeschlossener Aufgaben
+| ProzessSchritt
+| gesamtAufgaben
+| Integer
+| Anzahl zugehöriger Aufgaben
+
+| Aufgabe
+| id
+| UUID
+| Primärschlüssel
+| Aufgabe
+| titel
+| String
+| Kurzer Titel der Aufgabe
+| Aufgabe
+| beschreibung
+| String
+| Längere Beschreibung
+| Aufgabe
+| status
+| Enum
+| (OFFEN, IN_BEARBEITUNG, ABGESCHLOSSEN)
+| Aufgabe
+| prozessSchrittId
+| UUID
+| Referenz auf ProzessSchritt
+
+| Finanzierung
+| id
+| UUID
+| Primärschlüssel
+| Finanzierung
+| darlehensHoehe
+| Decimal
+| Kreditsumme
+| Finanzierung
+| zinssatzProJahr
+| Decimal
+| Zinssatz p.a. in %
+| Finanzierung
+| laufzeitInJahren
+| Integer
+| Laufzeit
+| Finanzierung
+| monatlicheRate
+| Decimal
+| Berechnetes Feld (Annuitätenformel)
+
+| Dokument
+| id
+| UUID
+| Primärschlüssel
+| Dokument
+| titel
+| String
+| Dokumentname
+| Dokument
+| dateiPfad
+| String
+| Pfad zur Datei (optional)
+| Dokument
+| dateiBlob
+| Blob
+| Binärdaten (optional)
+| Dokument
+| version
+| Integer
+| Versionsnummer
+| Dokument
+| erstelltAm
+| DateTime
+| Erstellungszeitpunkt
+| Dokument
+| aktualisiertAm
+| DateTime
+| Letzter Änderungszeitpunkt
+
+| DokumentNotiz
+| id
+| UUID
+| Primärschlüssel
+| DokumentNotiz
+| notizText
+| String
+| Freitext
+| DokumentNotiz
+| zeitstempel
+| DateTime
+| Zeitpunkt der Notizerstellung
+| DokumentNotiz
+| dokumentId
+| UUID
+| Referenz auf Dokument
+
+| Kontakt
+| id
+| UUID
+| Primärschlüssel
+| Kontakt
+| typ
+| Enum
+| (BANKBERATER, MAKLER, NOTAR, GUTACHTER, HANDWERKER, SONSTIGE)
+| Kontakt
+| name
+| String
+| Kontaktname/-person
+| Kontakt
+| telefon
+| String
+| Telefonnummer
+| Kontakt
+| email
+| String
+| E-Mail-Adresse
+| Kontakt
+| adresse
+| String
+| Adresse (optional)
+
+| Objekt
+| id
+| UUID
+| Primärschlüssel
+| Objekt
+| titel
+| String
+| Kurze Bezeichnung
+| Objekt
+| beschreibung
+| String
+| Längere Beschreibung (optional)
+| Objekt
+| lage
+| String
+| Lage (Stadtteil, Adresse)
+| Objekt
+| kaufpreis
+| Decimal
+| Kaufpreis (optional)
+| Objekt
+| wohnflaeche
+| Decimal
+| Wohnfläche (optional)
+| Objekt
+| anzahlZimmer
+| Integer
+| Zimmeranzahl
+
+| ObjektBewertung
+| id
+| UUID
+| Primärschlüssel
+| ObjektBewertung
+| objektId
+| UUID
+| Referenz auf Objekt
+| ObjektBewertung
+| kriteriumName
+| String
+| Bewertungskriterium (z.B. "Lage")
+| ObjektBewertung
+| score
+| Float
+| Punkte-Bewertung
+
+| Termin
+| id
+| UUID
+| Primärschlüssel
+| Termin
+| beschreibung
+| String
+| Terminbeschreibung
+| Termin
+| datumUhrzeit
+| DateTime
+| Zeitpunkt
+| Termin
+| ort
+| String
+| Ort (optional)
+| Termin
+| kontaktId
+| UUID
+| Referenz auf Kontakt
+|===
+
+== UI-Design und Responsivität
+
+=== Dark Theme
+- Farbschema: Schwarz (#000000) und verschiedene Grautöne (z.B. #1a1a1a, #333333) für edle Ästhetik.
+- Alle Textelemente mit ausreichendem Kontrast, um gute Lesbarkeit zu gewährleisten.
+- Layout-Elemente (Karten, Panels, Listen) folgen einer einheitlichen, minimalistischen Formensprache.
+
+=== GPU-basierte Animationen
+- CSS-Transitions oder Canvas-basierte Effekte (je nach Bedarf) für flüssige Ein- und Ausblendungen.
+- Keine Hochleistungs-Berechnungen auf der GPU. Das Ziel sind allein weiche UI-Animationen.
+
+=== Responsives Layout
+- Bricht ggf. bei kleineren Viewports auf mobilefreundliche Darstellung um (Menü, Listen).
+- Kein Text darf über seinen Container hinausragen, keine UI-Elemente überschneiden sich.
+- Einfache Wiederverwendbarkeit dank konsequenter Verwendung von flexiblen CSS-Einheiten (z.B. `rem`, `flex`).
+
+== Technologie-Empfehlung (Simpler Stack)
+
+=== Frontend
+- **Vue.js**: Leicht einzurichten, ermöglicht eine kompakte Single-Page-Anwendung (SPA).
+- GPU-gestützte Animationen können über CSS-Transforms oder Vue-Transitions realisiert werden.
+- Responsives Styling lässt sich mit geringer Konfiguration (z.B. einfache CSS-Datei oder minimalem Framework) umsetzen.
+
+=== Backend
+- **Node.js** mit **Express**: Einfache REST-Endpoints, flache Lernkurve, schnelle Einrichtung.
+- Dokumenten-Uploads via minimalen Middleware-Komponenten (z.B. `multer`), Konfiguration bleibt überschaubar.
+- Logikmodule für Finanzierungsberechnungen, Dokument- und Kontaktverwaltung klar getrennt.
+
+=== Datenbank
+- **SQLite**: Einfachste Variante, keine Installation zusätzlicher Datenbankserver notwendig.
+- Bei Bedarf an mehr Skalierung oder Netzwerkzugriff (z.B. Mehrbenutzerbetrieb) kann problemlos auf PostgreSQL oder MySQL gewechselt werden.
+- Verwaltung der oben definierten Entitäten (ProzessSchritt, Aufgabe, Kontakt, Dokument, etc.) in einer einzigen SQLite-Datei.
+
+== Schnittstellen und Interoperabilität
+
+- Optionale Integration externer Kalender (z.B. Export/Import von Terminen via iCalendar).
+- Optionaler Import von Exposé-Daten über REST-APIs (JSON, XML, CSV etc.), je nach Plattform.
+- Keine vorgeschriebene Bereitstellung als Microservices; ein monolithischer Ansatz genügt, um Komplexität gering zu halten.
+
+== Zusammenfassung
+
+Diese ASCIIDOC-Spezifikation deckt sämtliche Anforderungen der *"Wohnungskauf"*­Anwendung ab:
+
+- Step-by-step-Fortschritt mit Aufgabenverwaltung, Dokumenten- und Kontaktmanagement.
+- Finanzierungsberechnungen, Objektvergleiche und Terminplanung.
+- Dunkles, edles UI-Design (Dark Theme), responsives Layout, GPU-unterstützte Animationen für flüssige Übergänge.
+- Simpler Technologie-Stack mit Vue.js (Frontend), Node.js/Express (Backend) und SQLite (Datenbank), wodurch die Anwendung leicht implementiert und gepflegt werden kann.
+- Keine Text- oder UI-Elemente überlappen sich; Design und Struktur bleiben jederzeit übersichtlich.

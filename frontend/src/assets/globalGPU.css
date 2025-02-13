@@ -1,0 +1,19 @@
+/* Datei: wohnungskauf/frontend/src/assets/globalGPU.css */
+
+/* Alle Elemente sollen GPU-optimiert arbeiten */
+* {
+    /* Erzwingt die Nutzung der GPU für z. B. Transformationen und Opacity */
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }
+  
+  /* Optimierte Übergänge für flüssige Animationen */
+  .fade-enter-active, .fade-leave-active {
+    transition: opacity 0.5s ease-out;
+  }
+  
+  /* Allgemeine Optimierungsklasse für häufig genutzte Animationseffekte */
+  .gpu-optimized {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }

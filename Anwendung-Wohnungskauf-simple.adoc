@@ -1,0 +1,534 @@
+= Anwendung "Wohnungskauf" – Vollständige Technische Spezifikation für automatisierte Codegenerierung
+:doctype: book
+:toc:
+:sectnums:
+:icons: font
+:experimental:
+:source-highlighter: highlight.js
+
+Dieses Dokument beschreibt in höchster Detailtiefe sämtliche Aspekte der "Wohnungskauf" Anwendung. Es dient als präzise Bauanleitung für einen KI-basierten Code-Generator, um die Anwendung **vollständig, korrekt und ohne Interpretationsspielräume** zu erstellen. Alle Funktionen, Datenmodelle, Schnittstellen, Algorithmen, UI-Design-Vorgaben und Abhängigkeiten werden explizit und formal definiert.
+
+== 1. Einleitung
+Die "Wohnungskauf" Anwendung unterstützt den vollständigen Immobilienkaufprozess – von der ersten Orientierung bis zum Notartermin. Der Fokus liegt auf:
+* **Step-by-step Visualisierung** des Prozesses inklusive Fortschrittsanzeige und Aufgabenverwaltung.
+* **Finanzierungs- und Budgetplanung** mittels eines Finanzkalkulators (Annuitätenrechner) und Nebenkostenübersicht.
+* **Dokumenten- und Informationsmanagement** mit Upload, Versionierung und Notizfunktion.
+* **Kontaktmanagement** zur strukturierten Verwaltung aller involvierten Parteien.
+* **Objektvergleich** inklusive Bewertung und Scoring.
+* **Terminkoordination** zur Verwaltung von Besichtigungs- und Notarterminen.
+* **Schrittweise Prozessbegleitung** bis zum Kaufabschluss.
+* **Erweiterungsfunktionen** wie automatisierte Berichte, statistische Auswertungen, Investitions- und Marktdatenanalyse.
+
+Die Anwendung wurde so konzipiert, dass sie GPU-unterstützte Animationen für flüssige UI-Übergänge nutzt, ein edles Dark-Theme bietet und mittels eines simplen Technologie-Stacks (Vue.js, Node.js/Express, SQLite) implementiert wird.
+
+== 2. Systemübersicht
+Die Anwendung gliedert sich in zwei Hauptbereiche:
+* **Frontend** – Implementiert als Single-Page Application (SPA) in Vue.js (Version ^3.2.47) mit Komponenten, Routen, globalen CSS-Optimierungen (GPU-Optimierung) und responsivem Dark-Theme.
+* **Backend** – Realisiert mit Node.js (Express ^4.18.2) und stellt REST-Endpoints für sämtliche CRUD-Operationen und spezielle Funktionen (z.B. Finanzierungsberechnung) bereit. Die Datenpersistenz erfolgt über SQLite (sqlite3 ^5.1.2).
+
+Zusätzlich existieren:
+* **Dokumentation** im ASCIIDOC-Format.
+* **Automatisiertes Caching** und Logging (mittels winston) im Backend.
+* **Dateiuploads** mittels multer (Version ^1.4.5) im Dokumentenmanagement.
+
+== 3. Architektur und Technologie-Stack
+Die Anwendung verwendet folgenden simplen Technologie-Stack:
+
+=== 3.1 Frontend
+* **Framework:** Vue.js (^3.2.47)
+* **Routing:** vue-router (^4.1.6)
+* **HTTP Client:** axios (^1.3.4)
+* **Build-Tool:** Vue CLI Service (^5.0.0)
+* **Styling:** Globales CSS inkl. GPU-optimierte Klassen (z. B. `transform: translateZ(0);`)
+* **Dateistruktur (Auszug):**
+  - `frontend/src/App.vue`
+  - `frontend/src/main.js`
+  - `frontend/src/router/index.js`
+  - Komponenten unter `frontend/src/components/`
+  - Views unter `frontend/src/views/`
+  - Globales Styling in `frontend/src/assets/globalGPU.css`
+  - Mixins unter `frontend/src/mixins/`
+
+=== 3.2 Backend
+* **Plattform:** Node.js mit Express (^4.18.2)
+* **Middleware:** cors, body-parser, multer (für Datei-Uploads)
+* **Datenbank:** SQLite (sqlite3 ^5.1.2) – eine einzelne SQLite-Datei (wohnungskauf.db)
+* **Logging:** winston (Logger-Konfiguration in `backend/utils/logger.js`)
+* **Dateistruktur (Auszug):**
+  - `backend/server.js` – Hauptserver
+  - Routen unter `backend/routes/`
+  - Controller unter `backend/controllers/`
+  - Modelle und Datenbankinitialisierung unter `backend/database/init.js`
+  - Utilities in `backend/utils/` (z.B. `finanzierung.js` für Finanzkalkulation)
+
+=== 3.3 Abhängigkeiten (mit exakten Versionen)
+* Frontend: vue (^3.2.47), vue-router (^4.1.6), axios (^1.3.4), @vue/cli-service (^5.0.0)
+* Backend: express (^4.18.2), sqlite3 (^5.1.2), multer (^1.4.5), cors (^2.8.5), body-parser (^1.20.1), nodemon (^2.0.22)
+
+== 4. Detaillierte Funktionsspezifikation
+Im Folgenden werden alle Hauptfunktionen und ihre technischen Anforderungen exakt beschrieben:
+
+=== 4.1 Step-by-step Visualisierung
+* **Funktionen:**
+  - Fortschrittsbalken: Anzeige des aktuellen Prozessschrittes basierend auf dem Verhältnis abgeschlossener zu gesamt Aufgaben.
+  - Timeline: Darstellung der Meilensteine (z. B. "Finanzierung klären", "Objektsuche", "Notartermin") als horizontale, scrollbare Liste mit GPU-optimierten Hover-Effekten.
+  - Aufgabenverwaltung: Verwaltung von Aufgaben mit Status (OFFEN, IN_BEARBEITUNG, ABGESCHLOSSEN) und Zuordnung zu einem Prozessschritt.
+
+* **Technische Anforderungen:**
+  - Datenmodel: Entität `ProzessSchritt` mit Attributen `id (UUID)`, `name (String)`, `sortIndex (Integer)`, `erledigteAufgaben (Integer)`, `gesamtAufgaben (Integer)`.
+  - Entität `Aufgabe` mit `id (UUID)`, `titel (String)`, `beschreibung (String)`, `status (Enum)`, `prozessSchrittId (UUID)` als Fremdschlüssel.
+  - Frontend-Komponenten: `ProgressBar.vue`, `Timeline.vue`, `TaskList.vue`.
+
+=== 4.2 Finanzierungs- und Budgetplanung
+* **Funktionen:**
+  - Finanzkalkulator: Berechnung der monatlichen Rate auf Basis von Darlehenshöhe, Zinssatz pro Jahr und Laufzeit.
+  - Nebenkostenübersicht: Auflistung und Hochrechnung der Kaufnebenkosten.
+  - Budgetverwaltung: Zusammenfassung geplanter Ausgaben und Rücklagen.
+
+* **Technische Anforderungen:**
+  - Entität `Finanzierung` mit Attributen: 
+    * `id (UUID)`, 
+    * `darlehensHoehe (Decimal)`, 
+    * `zinssatzProJahr (Decimal)`, 
+    * `laufzeitInJahren (Integer)`, 
+    * `monatlicheRate (Decimal)`.
+  - Berechnungsalgorithmus (Pseudocode):
+  
+  [listing]
+  function berechneMonatlicheRate(darlehensHoehe, zinssatzProJahr, laufzeitInJahren):
+      zinssatzProMonat = (zinssatzProJahr / 12) / 100
+      anzahlMonate = laufzeitInJahren * 12
+      return (darlehensHoehe * zinssatzProMonat) / (1 - (1 + zinssatzProMonat) ^ (-anzahlMonate))
+  [/listing]
+  
+  - Backend-Implementierung in `backend/utils/finanzierung.js` und Controller in `backend/controllers/finanzierungController.js`.
+  - Frontend-Komponente: `Finanzkalkulator.vue`.
+
+=== 4.3 Dokumenten- und Informationsmanagement
+* **Funktionen:**
+  - Zentraler Speicherort: Upload und Ablage von Dokumenten (z. B. Exposés, Verträge).
+  - Versionierung: Verwaltung von Dokumentversionen.
+  - Notizfunktion: Erfassung von Freitextnotizen zu Dokumenten.
+
+* **Technische Anforderungen:**
+  - Entität `Dokument` mit Attributen: `id (UUID)`, `titel (String)`, `dateiPfad (String)`, `dateiBlob (Blob)`, `version (Integer)`, `erstelltAm (DateTime)`, `aktualisiertAm (DateTime)`.
+  - Entität `DokumentNotiz` mit `id (UUID)`, `notizText (String)`, `zeitstempel (DateTime)`, `dokumentId (UUID)`.
+  - Datei-Uploads via multer (Konfiguration in `backend/routes/dokumentRoutes.js`).
+  - Frontend-Komponenten: Integration in entsprechende Views.
+
+=== 4.4 Kontaktmanagement
+* **Funktionen:**
+  - Kontaktübersicht: Verwaltung von Kontakten (z. B. Bankberater, Makler, Notar).
+  - Zuweisung von Aufgaben an Kontakte.
+  - Filter- und Suchoptionen.
+
+* **Technische Anforderungen:**
+  - Entität `Kontakt` mit Attributen: `id (UUID)`, `typ (Enum: BANKBERATER, MAKLER, NOTAR, GUTACHTER, HANDWERKER, SONSTIGE)`, `name (String)`, `telefon (String)`, `email (String)`, `adresse (String)`.
+  - Backend-Controller in `backend/controllers/kontaktController.js`.
+  - Frontend-Komponente: View `KontaktView.vue`.
+
+=== 4.5 Objektvergleich und Selektionsunterstützung
+* **Funktionen:**
+  - Kriterienliste: Bewertungskriterien (z. B. Lage, Zustand) individuell definierbar.
+  - Vergleichsansicht: Gegenüberstellung von Objekten inklusive Scoring.
+  - Exposé-Datenimport: Optionale Schnittstelle zur Übernahme externer Objektinformationen.
+
+* **Technische Anforderungen:**
+  - Entität `Objekt` mit Attributen: `id (UUID)`, `titel (String)`, `beschreibung (String)`, `lage (String)`, `kaufpreis (Decimal)`, `wohnflaeche (Decimal)`, `anzahlZimmer (Integer)`.
+  - Entität `ObjektBewertung` mit: `id (UUID)`, `objektId (UUID)`, `kriteriumName (String)`, `score (Float)`.
+  - Backend-Controller in `backend/controllers/objektController.js` und `backend/controllers/objektBewertungController.js`.
+  - Frontend-View: `ObjektvergleichView.vue`.
+
+=== 4.6 Terminkoordination und Kalenderansicht
+* **Funktionen:**
+  - Erinnerungsfunktion: Benachrichtigungen für Deadlines und Termine.
+  - Terminverwaltung: CRUD-Operationen für Termine, inklusive Notizen und Fotos (mobiloptimiert).
+
+* **Technische Anforderungen:**
+  - Entität `Termin` mit Attributen: `id (UUID)`, `beschreibung (String)`, `datumUhrzeit (DateTime)`, `ort (String)`, `kontaktId (UUID)`.
+  - Backend-Controller in `backend/controllers/terminController.js`.
+  - Frontend-View: `TerminView.vue`.
+
+=== 4.7 Schrittweise Begleitung bis zum Kaufabschluss
+* **Funktionen:**
+  - Checklisten für Prozessabschnitte: Automatisch generierte To-Do Listen (z. B. vor Besichtigung, nach Kaufzusage).
+  - Fortschrittsberichte: Anzeige von offenen vs. abgeschlossenen Aufgaben.
+  - Vorbereitung auf Notartermin: Prüfung und Zusammenstellung finaler Unterlagen.
+
+* **Technische Anforderungen:**
+  - Nutzung der Entität `ProzessSchritt` und der zugehörigen `Aufgabe`.
+  - Backend-Controller in `backend/controllers/prozessController.js`.
+  - Frontend-View: `ProzessBegleitungView.vue`.
+
+=== 4.8 Erweiterungen (Zusätzliche Funktionen)
+* **Funktionen:**
+  - Automatisierte Berichte: Periodisches Reporting (z. B. als PDF).
+  - Statistische Auswertungen: Darstellung von Marktentwicklungen und Preistrends.
+  - Investitions- und Infrastrukturprojekte: Analyse von Investitionsvolumen.
+
+* **Technische Anforderungen:**
+  - Erweiterte API-Routen in `backend/routes/extendedRoutes.js` für:
+    - `/api/extended/statistics` – Städtische Statistikdaten.
+    - `/api/extended/traffic` – Verkehrsdaten.
+    - `/api/extended/nature` – Naturgefahren und Umweltdaten.
+    - `/api/extended/investments` – Investitionsdaten.
+    - `/api/extended/market` – Wohnmarkt- und Preistrends.
+  - Backend-Controller: `backend/controllers/extendedDataController.js` mit In-Memory-Caching (Cache-Dauer: 10 Minuten).
+  - Frontend-Dashboard-Komponenten: `StatisticsDashboard.vue`, `TrafficDashboard.vue`, `NatureDashboard.vue`, `InvestmentDashboard.vue`, `MarketDashboard.vue`.
+
+== 5. Datenmodell (Exakte Definition der Entitäten)
+Die folgenden Tabellen definieren das relationale Datenmodell:
+
+[cols="1,1,1,2", options="header"]
+|===
+| Entität | Attribut | Datentyp | Beschreibung
+
+| ProzessSchritt
+| id
+| UUID
+| Primärschlüssel
+| Identifikator des Prozessschrittes
+| ProzessSchritt
+| name
+| String
+| Name des Schrittes (z.B. "Finanzierung klären")
+| ProzessSchritt
+| sortIndex
+| Integer
+| Reihenfolge innerhalb des Gesamtprozesses
+| ProzessSchritt
+| erledigteAufgaben
+| Integer
+| Anzahl der abgeschlossenen Aufgaben
+| ProzessSchritt
+| gesamtAufgaben
+| Integer
+| Gesamtanzahl der zugeordneten Aufgaben
+
+| Aufgabe
+| id
+| UUID
+| Primärschlüssel
+| Identifikator der Aufgabe
+| Aufgabe
+| titel
+| String
+| Kurzbeschreibung der Aufgabe
+| Aufgabe
+| beschreibung
+| String
+| Ausführliche Beschreibung der Aufgabe
+| Aufgabe
+| status
+| Enum (OFFEN, IN_BEARBEITUNG, ABGESCHLOSSEN)
+| Status der Aufgabe
+| Aufgabe
+| prozessSchrittId
+| UUID
+| Fremdschlüssel zu ProzessSchritt
+
+| Finanzierung
+| id
+| UUID
+| Primärschlüssel
+| Identifikator der Finanzierung
+| Finanzierung
+| darlehensHoehe
+| Decimal
+| Höhe des Darlehens
+| Finanzierung
+| zinssatzProJahr
+| Decimal
+| Zinssatz pro Jahr in %
+| Finanzierung
+| laufzeitInJahren
+| Integer
+| Laufzeit des Kredits in Jahren
+| Finanzierung
+| monatlicheRate
+| Decimal
+| Berechnete monatliche Rate (Ergebnis des Annuitätenrechners)
+
+| Dokument
+| id
+| UUID
+| Primärschlüssel
+| Identifikator des Dokuments
+| Dokument
+| titel
+| String
+| Name des Dokuments
+| Dokument
+| dateiPfad
+| String
+| Pfad zur gespeicherten Datei (optional)
+| Dokument
+| dateiBlob
+| Blob
+| Binärdaten des Dokuments (optional)
+| Dokument
+| version
+| Integer
+| Versionsnummer des Dokuments
+| Dokument
+| erstelltAm
+| DateTime
+| Erstellungszeitpunkt
+| Dokument
+| aktualisiertAm
+| DateTime
+| Zeitpunkt der letzten Aktualisierung
+
+| DokumentNotiz
+| id
+| UUID
+| Primärschlüssel
+| Identifikator der Notiz
+| DokumentNotiz
+| notizText
+| String
+| Freitextnotiz
+| DokumentNotiz
+| zeitstempel
+| DateTime
+| Zeitpunkt der Notizerstellung
+| DokumentNotiz
+| dokumentId
+| UUID
+| Fremdschlüssel zu Dokument
+
+| Kontakt
+| id
+| UUID
+| Primärschlüssel
+| Identifikator des Kontakts
+| Kontakt
+| typ
+| Enum (BANKBERATER, MAKLER, NOTAR, GUTACHTER, HANDWERKER, SONSTIGE)
+| Typ des Kontakts
+| Kontakt
+| name
+| String
+| Name des Kontakts
+| Kontakt
+| telefon
+| String
+| Telefonnummer
+| Kontakt
+| email
+| String
+| E-Mail-Adresse
+| Kontakt
+| adresse
+| String
+| Physische Adresse (optional)
+
+| Objekt
+| id
+| UUID
+| Primärschlüssel
+| Identifikator des Objekts
+| Objekt
+| titel
+| String
+| Kurztitel des Objekts
+| Objekt
+| beschreibung
+| String
+| Detaillierte Beschreibung (optional)
+| Objekt
+| lage
+| String
+| Lagebeschreibung (Stadtteil, Adresse)
+| Objekt
+| kaufpreis
+| Decimal
+| Kaufpreis (optional)
+| Objekt
+| wohnflaeche
+| Decimal
+| Wohnfläche (optional)
+| Objekt
+| anzahlZimmer
+| Integer
+| Anzahl der Zimmer
+
+| ObjektBewertung
+| id
+| UUID
+| Primärschlüssel
+| Identifikator der Bewertung
+| ObjektBewertung
+| objektId
+| UUID
+| Fremdschlüssel zu Objekt
+| ObjektBewertung
+| kriteriumName
+| String
+| Name des Bewertungskriteriums (z.B. "Lage")
+| ObjektBewertung
+| score
+| Float
+| Bewertungs-Score
+
+| Termin
+| id
+| UUID
+| Primärschlüssel
+| Identifikator des Termins
+| Termin
+| beschreibung
+| String
+| Beschreibung des Termins
+| Termin
+| datumUhrzeit
+| DateTime
+| Datum und Uhrzeit des Termins
+| Termin
+| ort
+| String
+| Ort (optional)
+| Termin
+| kontaktId
+| UUID
+| Fremdschlüssel zu Kontakt
+|===
+
+== 6. API-Schnittstellen (REST-Endpoints)
+Die Anwendung bietet folgende Endpunkte, die jeweils CRUD-Operationen und spezielle Funktionen abbilden:
+
+=== 6.1 Standard-Endpoints
+* **ProzessSchritte:**  
+  - GET `/api/prozessschritte` – Liefert alle Prozessschritte.  
+  - GET `/api/prozessschritte/{id}` – Liefert einen spezifischen Prozessschritt anhand der UUID.  
+  - POST `/api/prozessschritte` – Erstellt einen neuen Prozessschritt. (Payload: id, name, sortIndex, erledigteAufgaben, gesamtAufgaben)  
+  - PUT `/api/prozessschritte/{id}` – Aktualisiert den Prozessschritt.  
+  - DELETE `/api/prozessschritte/{id}` – Löscht den Prozessschritt.
+
+* **Aufgaben:**  
+  - GET `/api/aufgaben`  
+  - GET `/api/aufgaben/{id}`  
+  - POST `/api/aufgaben` (Payload: id, titel, beschreibung, status, prozessSchrittId)  
+  - PUT `/api/aufgaben/{id}`  
+  - DELETE `/api/aufgaben/{id}`
+
+* **Finanzierung:**  
+  - GET `/api/finanzierung`  
+  - GET `/api/finanzierung/{id}`  
+  - POST `/api/finanzierung` (Payload: id, darlehensHoehe, zinssatzProJahr, laufzeitInJahren; monatlicheRate wird intern berechnet)  
+  - PUT `/api/finanzierung/{id}`  
+  - DELETE `/api/finanzierung/{id}`
+
+* **Dokumente:**  
+  - GET `/api/dokumente`  
+  - GET `/api/dokumente/{id}`  
+  - POST `/api/dokumente` – Unterstützt Datei-Uploads (multipart/form-data, Feldname: file)  
+  - PUT `/api/dokumente/{id}` – Aktualisierung mit optionalem Datei-Upload  
+  - DELETE `/api/dokumente/{id}`
+
+* **DokumentNotizen:**  
+  - GET `/api/dokumentnotizen`  
+  - GET `/api/dokumentnotizen/{id}`  
+  - POST `/api/dokumentnotizen`  
+  - PUT `/api/dokumentnotizen/{id}`  
+  - DELETE `/api/dokumentnotizen/{id}`
+
+* **Kontakte:**  
+  - GET `/api/kontakte`  
+  - GET `/api/kontakte/{id}`  
+  - POST `/api/kontakte`  
+  - PUT `/api/kontakte/{id}`  
+  - DELETE `/api/kontakte/{id}`
+
+* **Objekte:**  
+  - GET `/api/objekte`  
+  - GET `/api/objekte/{id}`  
+  - POST `/api/objekte`  
+  - PUT `/api/objekte/{id}`  
+  - DELETE `/api/objekte/{id}`
+
+* **Objektbewertungen:**  
+  - GET `/api/objektbewertungen`  
+  - GET `/api/objektbewertungen/{id}`  
+  - POST `/api/objektbewertungen`  
+  - PUT `/api/objektbewertungen/{id}`  
+  - DELETE `/api/objektbewertungen/{id}`
+
+* **Termine:**  
+  - GET `/api/termine`  
+  - GET `/api/termine/{id}`  
+  - POST `/api/termine`  
+  - PUT `/api/termine/{id}`  
+  - DELETE `/api/termine/{id}`
+
+=== 6.2 Erweiterte Endpunkte (Extended Routes)
+* GET `/api/extended/statistics` – Liefert stadtweite statistische Daten.
+* GET `/api/extended/traffic` – Liefert Verkehrsdaten (z. B. Blitzerdaten, Verkehrsfluss).
+* GET `/api/extended/nature` – Liefert Naturgefahren- und Umweltdaten.
+* GET `/api/extended/investments` – Liefert Daten zu Investitions- und Infrastrukturprojekten.
+* GET `/api/extended/market` – Liefert aggregierte Wohnmarktanalysen und Preistrends.
+
+== 7. Frontend-Spezifikation
+* **Dateistruktur:**  
+  - Hauptkomponente: `App.vue` (enthält `<router-view />`).
+  - Routen werden in `src/router/index.js` definiert.
+  - Views entsprechen den funktionalen Modulen (z. B. `StepByStepView.vue`, `FinanzierungsView.vue`, `KontaktView.vue`, etc.).
+  - Komponenten für Dashboard-Anzeigen (Statistik, Verkehr, Natur, Investments, Markt) sind unter `src/components/` zu finden.
+  - Globale GPU-Optimierung erfolgt in `src/assets/globalGPU.css`.
+  - Automatischer Refresh von Dashboard-Daten erfolgt über den Mix-in `AutoRefreshMixin.js`.
+
+* **UI-Design:**  
+  - Edles Dark-Theme: Hintergrund in Schwarz (#000000) und Grautöne (#1a1a1a, #333333).
+  - Responsive Layout: Anpassung an verschiedene Viewports (keine überlappenden Texte/Elemente).
+  - GPU-basierte Animationen: Verwendung von CSS-Transitions und `transform: translateZ(0)` für flüssige Animationen.
+
+== 8. Backend-Spezifikation
+* **Serverkonfiguration:**  
+  - Hauptserver in `server.js` lauscht auf Port 3000.
+  - Nutzung von cors und body-parser.
+  - Routen werden mittels `app.use()` eingebunden.
+
+* **Datenbank:**  
+  - SQLite-Datenbank: Datei `wohnungskauf.db` im Backend-Verzeichnis.
+  - Initialisierung und Erstellung der Tabellen erfolgt in `backend/database/init.js`.
+
+* **Controller und Logik:**  
+  - Jeder Controller (z. B. `finanzierungController.js`, `aufgabeController.js`, etc.) führt CRUD-Operationen und spezifische Logiken (wie Finanzierungsberechnung) aus.
+  - Fehlerbehandlung erfolgt mittels Statuscodes (500 bei Datenbankfehlern, 404 bei Nichtfinden von Einträgen).
+  - Logging erfolgt in `backend/utils/logger.js` mittels winston.
+
+* **Dateiuploads:**  
+  - Implementiert in den Routen (z. B. `dokumentRoutes.js`) unter Verwendung von multer mit konfiguriertem Speicherort `backend/uploads/`.
+
+== 9. Zusätzliche Technische Details
+* **Caching in Extended Endpoints:**  
+  - In `extendedDataController.js` wird ein einfaches In-Memory-Caching implementiert (Cache-Dauer: 10 Minuten), um externe API-Anfragen zu minimieren.
+* **Logger:**  
+  - Der Logger schreibt Logs sowohl in die Konsole als auch in eine Datei (`logs/application.log`).
+* **Auto-Refresh:**  
+  - Mix-in `AutoRefreshMixin.js` nutzt `setInterval` und `requestAnimationFrame`, um periodisch Daten (z. B. in Dashboards) zu aktualisieren.
+
+== 10. Deployment und Einrichtung
+* **Installation und Einrichtung:**  
+  - **Systemvoraussetzungen:** Raspberry Pi 4 (oder vergleichbarer Server), Node.js (empfohlen Version 16.x) und Git.
+  - **Backend:**  
+    1. Navigiere in das `backend`-Verzeichnis.
+    2. Führe `npm install` aus.
+    3. Starte den Server mit `npm start` (Standardport: 3000).
+  - **Frontend:**  
+    1. Navigiere in das `frontend`-Verzeichnis.
+    2. Führe `npm install` aus.
+    3. Starte den Entwicklungsserver mit `npm run serve` (Standardport: 8080) oder baue die Produktionsversion mit `npm run build`.
+* **Automatischer Start (optional):**  
+  - Einrichtung eines systemd-Service (siehe README.md Beispiel) für den automatischen Start beim Booten.
+
+== 11. Zusammenfassung und Hinweise für den KI-Codegenerator
+Dieses Dokument umfasst sämtliche codierungsrelevante Details der "Wohnungskauf" Anwendung, einschließlich:
+* Vollständiger Funktionsumfang und detaillierte Beschreibung aller Module.
+* Exakte Datenmodell-Definitionen mit Attributen, Datentypen und Beziehungen.
+* Präzise Definition aller API-Endpunkte mit CRUD-Operationen.
+* Exakte Spezifikation des Technologie-Stacks und der Abhängigkeiten.
+* Formale Darstellung von Algorithmen (z. B. Finanzierungsberechnung) im Pseudocode.
+* Detaillierte Frontend- und Backend-Spezifikationen, die eine direkte Ableitung der Code-Struktur ermöglichen.
+
+Hinweis: Der erweiterte Abschnitt zu den "Erweiterten Endpunkten" (Extended Routes) wurde in diese Spezifikation aufgenommen, um zusätzliche Funktionalitäten (z. B. städtische Statistik-, Verkehrs-, Natur-, Investitions- und Marktdaten) abzubilden, die im aktuellen Code realisiert sind.
